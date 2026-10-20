@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Graph{% endblock %}
+{% block nav_graph %}active{% endblock %}
+{% block content %}
+  {% if not graph_available %}
+    <h1>Code knowledge graph</h1>
+    <div class="card">
+      <p><strong>Graph not available.</strong> No <code>graph.json</code> was found for this run.</p>
+      <p>Build one with:</p>
+      <pre>sentinel graphify --repo-path {{ repo_hint }}</pre>
+      <p class="muted">Then reload this page. The graph is optional — Sentinel works without it.</p>
+    </div>
+  {% else %}
+    <div id="graph-toolbar" style="display:flex;gap:10px;align-items:center;margin:0 0 12px">
+      <input id="graph-search" type="text" placeholder="Filter nodes by label…"
+             style="flex:0 0 320px;font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:6px">
+      <button type="button" class="ghost" onclick="resetGraph()">Reset</button>
+      <span id="graph-status" class="muted" style="margin-left:auto"></span>
+    </div>
+
+    <div style="display:flex;gap:14px;align-items:stretch">
+      <aside style="flex:0 0 300px;max-height:70vh;overflow-y:auto">
+        <div class="card" style="margin:0">
+          <h3>God nodes</h3>
+          <div id="god-list">
+            {% for g in god_nodes %}
+              <div class="god-node" data-node-id="{{ g.id }}"
+                   style="padding:7px 8px;border-bottom:1px solid var(--line);cursor:pointer"
+                   onclick="focusNode('{{ g.id }}')">
+                <div style="font-weight:600">{{ g.label }}</div>
+                <div class="muted" style="font-size:12px">{{ g.source_file }} · degree {{ g.degree }}</div>
+              </div>
+            {% else %}
+              <div class="muted">No god nodes.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </aside>
+
+      <div style="flex:1 1 auto;min-width:0">
+        <div id="graph-canvas" style="height:70vh;border:1px solid var(--line);border-radius:8px;background:#fff"></div>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if graph_available %}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/vis-network.min.js"></script>
+  <script>
+    // 20-colour palette; cycles if there are more communities.
+    const PALETTE = [
+      "#e6194b","#3cb44b","#ffe119","#4363d8","#f58231","#911eb4","#46f0f0","#f032e6",
+      "#bcf60c","#fabebe","#008080","#e6beff","#9a6324","#fffac8","#800000","#aaffc3",
+      "#808000","#ffd8b1","#000075","#808080"
+    ];
+    let network = null, allNodes = null, allEdges = null, rawNodes = [], rawEdges = [];
+
+    function communityColor(c){ return PALETTE[(Number(c) || 0) % PALETTE.length]; }
+
+    async function loadGraph(){
+      const status = document.getElementById('graph-status');
+      let g;
+      try {
+        const r = await fetch('/api/graph/data');
+        if(!r.ok) throw new Error('graph data unavailable');
+        g = await r.json();
+      } catch(err){ status.textContent = 'Could not load graph: ' + err; return; }
+
+      rawNodes = g.nodes || [];
+      rawEdges = g.links || g.edges || [];
+
+      // Degree from edge count (client-side).
+      const degree = {};
+      rawEdges.forEach(function(e){
+        degree[e.source] = (degree[e.source]||0) + 1;
+        degree[e.target] = (degree[e.target]||0) + 1;
+      });
+      const communities = new Set();
+
+      const visNodes = rawNodes.map(function(n){
+        communities.add(n.community);
+        const d = degree[n.id] || 0;
+        return {
+          id: n.id,
+          label: n.label || String(n.id),
+          title: (n.source_file || '') + (n.community_name ? (' · ' + n.community_name) : ''),
+          value: d + 1,
+          color: communityColor(n.community),
+          _sourceFile: (n.source_file || '').toLowerCase(),
+          _label: (n.label || '').toLowerCase(),
+        };
+      });
+      const visEdges = rawEdges.map(function(e, i){
+        return {id: 'e'+i, from: e.source, to: e.target, title: e.relation || '', arrows: 'to'};
+      });
+
+      allNodes = new vis.DataSet(visNodes);
+      allEdges = new vis.DataSet(visEdges);
+      const container = document.getElementById('graph-canvas');
+      network = new vis.Network(container, {nodes: allNodes, edges: allEdges}, {
+        nodes: {shape: 'dot', scaling: {min: 6, max: 40}},
+        edges: {color: {opacity: 0.4}, smooth: false},
+        physics: {stabilization: true, barnesHut: {gravitationalConstant: -8000}},
+        interaction: {hover: true},
+      });
+
+      network.on('click', function(params){
+        if(params.nodes.length) focusNode(params.nodes[0]);
+        else resetGraph();
+      });
+
+      document.getElementById('graph-status').textContent =
+        rawNodes.length + ' nodes, ' + rawEdges.length + ' edges, ' +
+        communities.size + ' communities';
+    }
+
+    function _dimAllExcept(keepIds){
+      const keep = new Set(keepIds);
+      allNodes.update(allNodes.get().map(function(n){
+        const on = keep.has(n.id);
+        return {id: n.id, opacity: on ? 1.0 : 0.2};
+      }));
+    }
+
+    async function focusNode(nodeId){
+      try {
+        const r = await fetch('/api/graph/node/' + encodeURIComponent(nodeId));
+        if(!r.ok){ return; }
+        const data = await r.json();
+        const keep = [nodeId].concat((data.neighbors || []).map(function(n){ return n.id; }));
+        _dimAllExcept(keep);
+        network.selectNodes([nodeId]);
+        network.focus(nodeId, {scale: 1.0, animation: true});
+      } catch(err){ /* non-fatal */ }
+    }
+
+    function resetGraph(){
+      if(!allNodes) return;
+      allNodes.update(allNodes.get().map(function(n){ return {id: n.id, opacity: 1.0}; }));
+      if(network) network.unselectAll();
+    }
+
+    // Search box: dim nodes whose label does not match.
+    document.getElementById('graph-search').addEventListener('input', function(ev){
+      const q = ev.target.value.trim().toLowerCase();
+      if(!allNodes) return;
+      if(!q){ resetGraph(); return; }
+      allNodes.update(allNodes.get().map(function(n){
+        return {id: n.id, opacity: n._label.indexOf(q) >= 0 ? 1.0 : 0.2};
+      }));
+    });
+
+    // Finding-to-graph linking hook (brief.html postMessages this).
+    window.addEventListener('message', async function(ev){
+      const msg = ev.data || {};
+      if(msg.type !== 'highlight-file' || !msg.file) return;
+      try {
+        const r = await fetch('/api/graph/file?path=' + encodeURIComponent(msg.file));
+        const data = await r.json();
+        const ids = (data.nodes || []).map(function(n){ return n.id; });
+        if(ids.length){ _dimAllExcept(ids); if(network) network.fit({nodes: ids, animation: true}); }
+      } catch(err){ /* non-fatal */ }
+    });
+
+    loadGraph();
+  </script>
+  {% endif %}
+{% endblock %}

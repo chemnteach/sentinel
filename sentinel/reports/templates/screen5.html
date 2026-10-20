@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Learning{% endblock %}
+{% block nav_learning %}active{% endblock %}
+{% block content %}
+  <h1>Learning proposals</h1>
+  <p class="sub">{{ proposals|length }} proposal(s) extracted from this engagement.</p>
+
+  {% if not proposals %}
+    <div class="card"><span class="muted">No learning proposals yet.</span></div>
+  {% endif %}
+
+  {% for p in proposals %}
+    <div class="card">
+      <h3>Proposal {{ loop.index }}{% if p.confidence %} <span class="muted">— confidence: {{ p.confidence }}</span>{% endif %}</h3>
+      <p>
+        {% if p.category %}<span class="pill IN_PROGRESS">{{ p.category }}</span>{% endif %}
+        {% if p.severity %}<span class="pill ESCALATED">{{ p.severity }}</span>{% endif %}
+      </p>
+      <p><strong>What triggered it:</strong> {{ p.trigger or "(unspecified)" }}</p>
+      <p><strong>Proposed change:</strong> {{ p.proposed_change or "(unspecified)" }}</p>
+      <p>
+        <button type="button" onclick="proposePr(this, '{{ p.id }}')">Open PR</button>
+        <span class="muted pr-msg"></span>
+      </p>
+    </div>
+  {% endfor %}
+
+  <script>
+    async function proposePr(btn, learningId){
+      btn.disabled = true;
+      const msg = btn.parentElement.querySelector('.pr-msg');
+      msg.textContent = ' Creating PR…';
+      try{
+        const r = await fetch('/api/learning/propose-pr', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({learning_id: learningId})
+        });
+        const data = await r.json();
+        if(data.pr_url){
+          msg.innerHTML = ' <a href="' + data.pr_url + '" target="_blank">PR #' +
+            (data.pr_number || '?') + ' →</a>';
+        } else {
+          msg.textContent = ' Error: ' + (data.error || 'unknown');
+          btn.disabled = false;
+        }
+      }catch(err){
+        msg.textContent = ' Error: ' + err;
+        btn.disabled = false;
+      }
+    }
+  </script>
+{% endblock %}

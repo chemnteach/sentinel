@@ -1,0 +1,1 @@
+"""Placeholder end-to-end tests for the Sentinel workflow layer."""

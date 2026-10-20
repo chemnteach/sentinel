@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Escalated{% endblock %}
+{% block nav_escalated %}active{% endblock %}
+{% block content %}
+  <h1>Escalated tasks — needs your attention</h1>
+  <p class="sub">{{ tasks|length }} task(s) exhausted automated remediation and require human review.</p>
+
+  {% if not tasks %}
+    <div class="card"><span class="muted">No escalated tasks. Nothing needs your attention right now.</span></div>
+  {% endif %}
+
+  {% for t in tasks %}
+    <div class="card">
+      <h3>{{ t.task_id }} {% if t.severity %}<span class="pill ESCALATED">{{ t.severity }}</span>{% endif %}</h3>
+      <p><strong>Finding:</strong> {{ t.description }}</p>
+      <p><strong>Escalation reason:</strong> {{ t.reason }}</p>
+      {% if t.retry_context %}
+        <details>
+          <summary class="muted">Retry context ({{ t.retry_context|length }} chars)</summary>
+          <pre>{{ t.retry_context }}</pre>
+        </details>
+      {% else %}
+        <p class="muted">No retry context recorded.</p>
+      {% endif %}
+      <p>
+        <span class="tip" data-tip="Coming in Phase 4">
+          <button type="button" disabled>Begin Human Review</button>
+        </span>
+      </p>
+    </div>
+  {% endfor %}
+{% endblock %}

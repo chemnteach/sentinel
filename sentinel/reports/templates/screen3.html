@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Progress{% endblock %}
+{% block nav_progress %}active{% endblock %}
+{% block content %}
+  <h1>Remediation progress</h1>
+  <p class="sub">Live status of the remediation batch. <span class="muted" id="lastUpdated"></span></p>
+
+  <div class="counts">
+    <div class="count-box"><div class="n" id="c-completed">0</div><div class="l">Completed</div></div>
+    <div class="count-box"><div class="n" id="c-escalated">0</div><div class="l">Escalated</div></div>
+    <div class="count-box"><div class="n" id="c-in_progress">0</div><div class="l">In progress</div></div>
+    <div class="count-box"><div class="n" id="c-pending">0</div><div class="l">Pending</div></div>
+  </div>
+
+  <div id="empty" class="card" hidden>
+    <span class="muted">Waiting for remediation batch to start…</span>
+  </div>
+
+  <table id="taskTable" hidden>
+    <thead><tr><th>Task</th><th>Status</th><th>Attempts</th><th>Last updated</th></tr></thead>
+    <tbody id="taskRows"></tbody>
+  </table>
+
+  <script>
+    async function poll(){
+      try{
+        const r = await fetch('/api/progress');
+        const data = await r.json();
+        const s = data.summary || {};
+        document.getElementById('c-completed').textContent = s.completed || 0;
+        document.getElementById('c-escalated').textContent = s.escalated || 0;
+        document.getElementById('c-in_progress').textContent = s.in_progress || 0;
+        document.getElementById('c-pending').textContent = s.pending || 0;
+        document.getElementById('lastUpdated').textContent =
+          data.last_updated ? ('Last updated: ' + data.last_updated) : '';
+        const tasks = data.tasks || {};
+        const ids = Object.keys(tasks);
+        const table = document.getElementById('taskTable');
+        const empty = document.getElementById('empty');
+        if(ids.length === 0){
+          table.hidden = true; empty.hidden = false; return;
+        }
+        empty.hidden = true; table.hidden = false;
+        const rows = ids.sort().map(function(id){
+          const t = tasks[id];
+          const st = (t.status||'').toUpperCase();
+          return '<tr><td>'+id+'</td>'+
+                 '<td><span class="pill '+st+'">'+st+'</span></td>'+
+                 '<td>'+(t.attempt_count||0)+'</td>'+
+                 '<td class="muted">'+(t.last_updated||'')+'</td></tr>';
+        }).join('');
+        document.getElementById('taskRows').innerHTML = rows;
+      }catch(err){ /* keep last-known state on a transient error */ }
+    }
+    poll();
+    setInterval(poll, 5000);
+  </script>
+{% endblock %}

@@ -1,0 +1,394 @@
+# Consequence spectrums per finding_kind.
+# Edit this file to tune consequence
+# descriptions for your domain.
+#
+# Two domains are provided: general and
+# factory. Add new domains by adding a
+# new key under any finding_kind.
+#
+# Format per kind:
+#   <finding_kind>:
+#     <domain>:
+#       best_case: "..."
+#       likely: "..."
+#       worst_case: "..."
+
+logic_bug:
+  general:
+    best_case: "Incorrect output in an edge case that rarely occurs"
+    likely: "Wrong behavior under normal inputs causing incorrect results"
+    worst_case: "Silent data corruption or system crash in production"
+  factory:
+    best_case: "Nuisance alarm triggered by an edge case input"
+    likely: "Incorrect alarm state — fault flagged incorrectly or not at all"
+    worst_case: "Uncaught fault condition leads to undetected safety event or material misprocessing"
+
+change_verification_gap:
+  general:
+    best_case: "Regression introduced by a change goes undetected until manual review"
+    likely: "A future change breaks existing behavior with no test to catch it"
+    worst_case: "Repeated silent regressions accumulate; behavior drifts from specification"
+  factory:
+    best_case: "A code change introduces a nuisance alarm that requires investigation"
+    likely: "A change silently breaks alarm logic — fault goes undetected until manual inspection"
+    worst_case: "Unverified change causes material misprocessing or missed safety condition"
+
+structural_complexity:
+  general:
+    best_case: "Code is hard to read and slows down future development"
+    likely: "Bugs are introduced during maintenance because the logic is hard to follow"
+    worst_case: "Critical changes are made incorrectly due to misunderstood logic"
+  factory:
+    best_case: "Technician cannot quickly diagnose alarm cause due to complex logic"
+    likely: "Maintenance change introduces a bug in alarm or control logic"
+    worst_case: "Complex fault-handling code is modified incorrectly, disabling safety monitoring"
+
+error_signal_loss:
+  general:
+    best_case: "An error is silently swallowed; debugging is harder than it should be"
+    likely: "A real failure is not surfaced; the system appears healthy when it is not"
+    worst_case: "A critical failure is suppressed; downstream systems operate on bad data"
+  factory:
+    best_case: "A transient fault is swallowed; no alarm is generated but the system recovers"
+    likely: "A recurring fault is suppressed; technician is never alerted"
+    worst_case: "A safety-critical fault is silently swallowed; no alarm, no shutdown, unsafe operation continues"
+
+hidden_dependency:
+  general:
+    best_case: "Code is fragile and hard to test in isolation"
+    likely: "A change in one place silently breaks behavior in another"
+    worst_case: "A deployment change triggers an unexpected failure in a dependent component"
+  factory:
+    best_case: "A configuration change has unexpected side effects on unrelated alarms"
+    likely: "A system update silently changes alarm thresholds or routing"
+    worst_case: "A hidden dependency causes alarm suppression or incorrect safety interlocks after an update"
+
+contract_violation:
+  general:
+    best_case: "A caller receives unexpected output and handles it gracefully"
+    likely: "A caller crashes or produces wrong results when the contract is violated"
+    worst_case: "Silent wrong behavior propagates through the system before being detected"
+  factory:
+    best_case: "An alarm is delayed because the expected data format was not delivered"
+    likely: "Incorrect alarm state because a function returns an unexpected value"
+    worst_case: "Safety interlock receives wrong data; condition not detected"
+
+timeout_handling_gap:
+  general:
+    best_case: "A slow operation causes a delayed response that users notice"
+    likely: "A hung operation blocks other work; performance degrades"
+    worst_case: "A deadlock or resource exhaustion causes a system outage"
+  factory:
+    best_case: "A delayed sensor read causes a late alarm"
+    likely: "A hung operation blocks the alarm pipeline; alarms are delayed or lost"
+    worst_case: "The alarm system becomes unresponsive; no alarms generated during a fault"
+
+divergent_change:
+  general:
+    best_case: "The module is harder to maintain than it should be"
+    likely: "A change for one purpose accidentally affects unrelated behavior"
+    worst_case: "Two unrelated responsibilities in the same module create conflicting behavior"
+  factory:
+    best_case: "A change to alarm logic accidentally affects unrelated reporting"
+    likely: "A maintenance change for one system affects alarm thresholds for another"
+    worst_case: "Conflicting responsibilities cause alarm suppression or double-firing"
+
+api_contract_mismatch:
+  general:
+    best_case: "A caller handles the unexpected format gracefully with degraded output"
+    likely: "A caller crashes or produces wrong results"
+    worst_case: "Silent wrong behavior propagates before being caught"
+  factory:
+    best_case: "An integration point returns unexpected data; alarm is delayed"
+    likely: "Incorrect data format causes alarm to fire incorrectly or not at all"
+    worst_case: "Safety system receives malformed data; interlock fails to trigger"
+
+authorization_gap:
+  general:
+    best_case: "An unauthorized user accesses non-sensitive data"
+    likely: "An unauthorized user modifies data or triggers restricted operations"
+    worst_case: "Full privilege escalation; unauthorized control of the system"
+  factory:
+    best_case: "An operator accesses a read-only view they should not see"
+    likely: "An operator modifies alarm thresholds or setpoints without authorization"
+    worst_case: "Unauthorized modification of safety interlocks or control parameters"
+
+blocking_io_in_async:
+  general:
+    best_case: "Occasional latency spike under light load"
+    likely: "Consistent performance degradation under normal load"
+    worst_case: "System becomes unresponsive under concurrent load"
+  factory:
+    best_case: "Occasional alarm delay under light system load"
+    likely: "Alarm pipeline slows under normal load; alarms arrive late"
+    worst_case: "Alarm system becomes unresponsive during peak activity; alarms lost"
+
+build_release_integrity_gap:
+  general:
+    best_case: "A dependency version mismatch causes a test failure caught before deployment"
+    likely: "An unverified dependency introduces a regression in production"
+    worst_case: "A tampered or compromised artifact is deployed to production"
+  factory:
+    best_case: "A build inconsistency is caught during commissioning testing"
+    likely: "An unverified build is deployed; behavior differs from tested version"
+    worst_case: "A compromised build disables or modifies alarm logic in production"
+
+cache_correctness_gap:
+  general:
+    best_case: "A stale cache read returns slightly outdated data that is soon refreshed"
+    likely: "A stale cache read causes incorrect behavior until the cache expires"
+    worst_case: "A poisoned cache causes persistent incorrect behavior"
+  factory:
+    best_case: "A stale setpoint is used briefly before the cache refreshes"
+    likely: "Stale alarm threshold causes false alarms or missed detections"
+    worst_case: "Stale safety parameter persists; fault condition not detected"
+
+concurrency_safety_gap:
+  general:
+    best_case: "A race condition occurs rarely and is self-correcting"
+    likely: "Intermittent incorrect behavior under concurrent load"
+    worst_case: "Data corruption or deadlock under normal concurrent operation"
+  factory:
+    best_case: "A transient alarm state flicker occurs and self-corrects"
+    likely: "Intermittent incorrect alarm state under concurrent sensor updates"
+    worst_case: "Alarm state corruption causes persistent false or missed alarm"
+
+configuration_drift:
+  general:
+    best_case: "A configuration difference causes a minor behavioral difference between environments"
+    likely: "Code that works in test fails in production due to configuration mismatch"
+    worst_case: "A security setting disabled in development is also disabled in production"
+  factory:
+    best_case: "Alarm threshold differs between test and production; nuisance alarms in production"
+    likely: "A configuration mismatch causes alarms to fire at wrong thresholds in production"
+    worst_case: "A safety parameter configured for test is deployed to production equipment"
+
+data_constraint_mismatch:
+  general:
+    best_case: "A constraint violation is caught at write time and surfaced as an error"
+    likely: "Invalid data is written silently; downstream reads fail unexpectedly"
+    worst_case: "Corrupted data propagates through the system before detection"
+  factory:
+    best_case: "An invalid sensor reading is rejected; alarm is not generated"
+    likely: "An out-of-range value is stored; downstream alarm logic uses incorrect data"
+    worst_case: "Corrupted measurement data causes incorrect process control decision"
+
+idempotency_gap:
+  general:
+    best_case: "A retry produces a duplicate record that is caught during reconciliation"
+    likely: "A retry produces duplicate side effects that corrupt state"
+    worst_case: "Repeated retries cause compounding state corruption"
+  factory:
+    best_case: "A duplicate alarm event is generated; technician investigates a false repeat"
+    likely: "Duplicate fault records cause incorrect alarm counting or prioritization"
+    worst_case: "Repeated alarm triggers cause equipment to cycle incorrectly"
+
+injection_risk:
+  general:
+    best_case: "An injection attempt is caught by upstream validation"
+    likely: "An injection succeeds; unauthorized data access or modification occurs"
+    worst_case: "Full system compromise via injection"
+  factory:
+    best_case: "An injection attempt is rejected by input validation"
+    likely: "Injected input modifies alarm thresholds or control parameters"
+    worst_case: "Injected command modifies safety interlock configuration"
+
+insecure_deserialization:
+  general:
+    best_case: "A malformed payload causes a controlled error"
+    likely: "A crafted payload causes unexpected behavior or state corruption"
+    worst_case: "A crafted payload executes arbitrary code"
+  factory:
+    best_case: "A malformed message is rejected; no alarm impact"
+    likely: "A crafted message corrupts alarm state or routing"
+    worst_case: "A crafted payload modifies control system parameters remotely"
+
+migration_hazard:
+  general:
+    best_case: "A migration fails cleanly and is rolled back without data loss"
+    likely: "A migration leaves data in a partially-updated state"
+    worst_case: "A migration causes irreversible data loss or corruption"
+  factory:
+    best_case: "A configuration migration fails; old config remains active"
+    likely: "A partial migration leaves alarm configuration in an inconsistent state"
+    worst_case: "A failed migration corrupts safety parameter history; audit trail lost"
+
+missing_transaction_boundary:
+  general:
+    best_case: "A partial write is detected and corrected during reconciliation"
+    likely: "A partial write leaves the system in an inconsistent state"
+    worst_case: "A partial write causes silent data corruption that propagates"
+  factory:
+    best_case: "A partial alarm record write is detected during the next polling cycle"
+    likely: "Partial alarm state update causes incorrect alarm display"
+    worst_case: "Partial write to safety parameter store leaves system in undefined state"
+
+n_plus_one_query:
+  general:
+    best_case: "Slightly slower response times that users tolerate"
+    likely: "Significant performance degradation as data grows"
+    worst_case: "System becomes unusable at production data volumes"
+  factory:
+    best_case: "Alarm dashboard loads slowly; technician waits"
+    likely: "Alarm retrieval times out under normal operational load"
+    worst_case: "Alarm system becomes unresponsive during high-volume fault events"
+
+observability_gap:
+  general:
+    best_case: "A failure occurs but is caught quickly through other means"
+    likely: "A failure goes undetected longer than it should"
+    worst_case: "A silent failure runs undetected for an extended period"
+  factory:
+    best_case: "A transient fault occurs; no log entry makes root cause analysis harder"
+    likely: "A recurring fault has no audit trail; cannot determine when it started"
+    worst_case: "A safety-relevant event has no record; compliance audit fails"
+
+partial_failure_handling_gap:
+  general:
+    best_case: "A partial failure is caught during the next operation"
+    likely: "A partial failure leaves the system in an inconsistent state"
+    worst_case: "A partial failure propagates silently causing compounding errors"
+  factory:
+    best_case: "A partial alarm write is retried successfully"
+    likely: "A partial fault record leaves alarm state inconsistent"
+    worst_case: "A partial safety parameter update leaves interlocks in undefined state"
+
+trust_boundary_gap:
+  general:
+    best_case: "Malformed input causes a controlled error"
+    likely: "Untrusted input causes incorrect behavior or data corruption"
+    worst_case: "Untrusted input enables unauthorized control or data access"
+  factory:
+    best_case: "Malformed sensor input is rejected; no alarm generated"
+    likely: "Untrusted input causes incorrect alarm threshold or routing"
+    worst_case: "External input modifies safety interlock parameters"
+
+security_misconfiguration:
+  general:
+    best_case: "A misconfiguration is caught during security review"
+    likely: "A misconfiguration is exploited in a targeted attack"
+    worst_case: "Full system exposure due to misconfigured access controls"
+  factory:
+    best_case: "A misconfiguration is caught during commissioning"
+    likely: "A misconfigured endpoint exposes alarm configuration to unauthorized users"
+    worst_case: "A misconfigured security setting allows unauthorized modification of safety parameters"
+
+sensitive_data_exposure:
+  general:
+    best_case: "Sensitive data is exposed to internal users who should not see it"
+    likely: "Sensitive data is exposed externally through a log or API"
+    worst_case: "Credentials or PII are exposed enabling further compromise"
+  factory:
+    best_case: "Internal process parameters are visible to unauthorized operators"
+    likely: "Equipment credentials or calibration data are exposed externally"
+    worst_case: "Safety system credentials are exposed enabling unauthorized access"
+
+concurrency_update_risk:
+  general:
+    best_case: "A race produces a transient incorrect value that self-corrects"
+    likely: "A race produces persistent incorrect state"
+    worst_case: "Concurrent updates cause data corruption"
+  factory:
+    best_case: "A transient alarm count error self-corrects on next update"
+    likely: "Concurrent alarm updates produce incorrect alarm state"
+    worst_case: "Concurrent updates to safety parameters produce undefined interlock state"
+
+silent_data_loss:
+  general:
+    best_case: "A small amount of non-critical data is discarded"
+    likely: "Important data is silently dropped causing incorrect downstream behavior"
+    worst_case: "Critical data is lost permanently with no indication"
+  factory:
+    best_case: "A non-critical measurement sample is dropped; minor data gap in trend"
+    likely: "Fault event data is silently dropped; alarm history is incomplete"
+    worst_case: "Safety-relevant measurement is discarded; fault goes unrecorded"
+
+crypto_misuse:
+  general:
+    best_case: "Weak crypto is used but not targeted by an attacker"
+    likely: "Weak crypto is broken; protected data is exposed"
+    worst_case: "Authentication bypass via broken crypto enables unauthorized access"
+  factory:
+    best_case: "Weak encryption on non-critical data goes unexploited"
+    likely: "Equipment credentials protected by weak crypto are compromised"
+    worst_case: "Authentication to safety system is bypassed via broken crypto"
+
+god_class:
+  general:
+    best_case: "Development is slower than it should be"
+    likely: "A change to one responsibility accidentally breaks another"
+    worst_case: "The class becomes unmaintainable; changes are made blindly"
+  factory:
+    best_case: "Alarm logic and reporting logic interfere; maintenance is slow"
+    likely: "A change to alarm processing accidentally modifies control logic"
+    worst_case: "Entangled safety and alarm logic cannot be safely modified"
+
+feature_envy:
+  general:
+    best_case: "Code is harder to maintain than it should be"
+    likely: "A change to the envied class breaks the envious method unexpectedly"
+    worst_case: "Tight coupling prevents independent testing or deployment"
+  factory:
+    best_case: "Alarm logic tightly coupled to data model is harder to test"
+    likely: "A data model change silently breaks alarm evaluation logic"
+    worst_case: "Untestable coupling between alarm and safety logic prevents validation"
+
+shotgun_surgery:
+  general:
+    best_case: "A change requires touching many files but is completed correctly"
+    likely: "A change misses one of the many required files; behavior is inconsistent"
+    worst_case: "A scattered concept is partially updated; system is in split-brain state"
+  factory:
+    best_case: "An alarm threshold update requires many file edits but is completed"
+    likely: "An alarm threshold is updated in some places but not all; inconsistent behavior"
+    worst_case: "A safety parameter change is partially applied across files; undefined interlock state"
+
+primitive_obsession:
+  general:
+    best_case: "Code is harder to read and reason about"
+    likely: "A primitive value is misinterpreted; wrong behavior results"
+    worst_case: "A primitive used as a domain concept is misused silently"
+  factory:
+    best_case: "An alarm severity level encoded as an integer is misread during maintenance"
+    likely: "A raw integer threshold is used incorrectly; alarm fires at wrong level"
+    worst_case: "A safety setpoint encoded as a raw float is misinterpreted; wrong interlock threshold"
+
+long_parameter_list:
+  general:
+    best_case: "Code is harder to call correctly; documentation is needed"
+    likely: "A parameter is passed in the wrong order; wrong behavior results"
+    worst_case: "A parameter ordering bug causes silent incorrect behavior"
+  factory:
+    best_case: "An alarm configuration function is called with parameters in wrong order; caught in testing"
+    likely: "Wrong parameter order causes alarm to use incorrect threshold"
+    worst_case: "Safety interlock function called with transposed parameters; wrong setpoint applied"
+
+data_clump:
+  general:
+    best_case: "Code is harder to maintain than it should be"
+    likely: "A related set of values is partially updated; inconsistent state"
+    worst_case: "A data clump is split across a refactor; related values diverge"
+  factory:
+    best_case: "Alarm configuration values passed separately are harder to validate"
+    likely: "A partial update to a clump of related alarm parameters causes inconsistency"
+    worst_case: "Related safety parameters updated independently drift apart; interlock uses mismatched values"
+
+inappropriate_intimacy:
+  general:
+    best_case: "Code is harder to test and maintain"
+    likely: "A change to one class unexpectedly breaks the other"
+    worst_case: "Two tightly coupled classes cannot be independently deployed or tested"
+  factory:
+    best_case: "Alarm and control classes are tightly coupled; unit testing is difficult"
+    likely: "A change to control logic breaks alarm evaluation"
+    worst_case: "Alarm and safety classes are so coupled that neither can be validated independently"
+
+algorithmic_scaling_gap:
+  general:
+    best_case: "Performance is acceptable at current data volumes"
+    likely: "Performance degrades noticeably as data grows"
+    worst_case: "System becomes unusable at production scale"
+  factory:
+    best_case: "Alarm evaluation is slow but completes within acceptable time"
+    likely: "Alarm evaluation time grows with fault count; alarms are delayed"
+    worst_case: "Alarm system cannot keep up with fault rate during a high-volume event; alarms lost"

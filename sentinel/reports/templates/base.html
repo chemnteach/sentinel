@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Sentinel{% endblock %} — {{ run_label }}</title>
+  <style>
+    :root{--ink:#1f2933;--line:#d6dbe1;--bg:#f7f8fa;--blue:#1a56db;--green:#1e7e34;--red:#b00020;--amber:#8a6d00}
+    *{box-sizing:border-box}
+    body{font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:var(--ink);margin:0;background:var(--bg)}
+    header{background:#fff;border-bottom:1px solid var(--line);padding:0 24px;display:flex;align-items:center;gap:24px;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+    header .brand{font-weight:700;font-size:16px;padding:14px 0}
+    header nav{display:flex;gap:4px}
+    header nav a{padding:14px 12px;color:#52606d;text-decoration:none;font-weight:600;font-size:13.5px;border-bottom:3px solid transparent}
+    header nav a:hover{color:var(--ink)}
+    header nav a.active{color:var(--blue);border-bottom-color:var(--blue)}
+    header .run{margin-left:auto;color:#52606d;font-size:13px}
+    main{max-width:1100px;margin:0 auto;padding:28px 24px 80px}
+    h1{font-size:23px;margin:0 0 6px}
+    .sub{color:#52606d;margin:0 0 20px}
+    .card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin:14px 0}
+    .card h3{margin:0 0 10px;font-size:16px}
+    button{font:inherit;font-weight:600;padding:8px 16px;border-radius:6px;border:1px solid var(--blue);background:var(--blue);color:#fff;cursor:pointer}
+    button.secondary{background:#fff;color:var(--blue)}
+    button:disabled{background:#c3cad3;border-color:#c3cad3;color:#fff;cursor:not-allowed}
+    button.ghost{background:#fff;color:#52606d;border-color:var(--line)}
+    a.backlink{color:var(--blue);text-decoration:none;font-weight:600;font-size:13.5px}
+    a.backlink:hover{text-decoration:underline}
+    pre{background:#1f2933;color:#e6edf3;padding:12px 14px;border-radius:6px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:12.5px}
+    table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13.5px}
+    th,td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+    th{background:#eceff3;font-weight:600}
+    .pill{display:inline-block;padding:2px 9px;border-radius:10px;font-size:12px;font-weight:700}
+    .pill.COMPLETE{background:#e6f4ea;color:var(--green)}
+    .pill.ESCALATED{background:#f8d7da;color:var(--red)}
+    .pill.IN_PROGRESS{background:#fff3cd;color:var(--amber)}
+    .pill.FAILED{background:#f8d7da;color:var(--red)}
+    .counts{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 16px}
+    .count-box{background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 16px;min-width:110px}
+    .count-box .n{font-size:24px;font-weight:700}
+    .count-box .l{font-size:12px;color:#52606d;text-transform:uppercase;letter-spacing:.03em}
+    .spinner{display:inline-block;width:16px;height:16px;border:2px solid #c3cad3;border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;vertical-align:middle}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .muted{color:#52606d}
+    .iter{display:inline-flex;align-items:center;gap:10px}
+    .iter input{width:56px;text-align:center;font:inherit;padding:6px;border:1px solid var(--line);border-radius:6px}
+    label.radio{margin-right:16px;font-weight:500;cursor:pointer}
+    .tip{position:relative}
+    .tip[data-tip]:hover::after{content:attr(data-tip);position:absolute;left:0;top:110%;white-space:nowrap;background:#1f2933;color:#fff;padding:4px 8px;border-radius:4px;font-size:11.5px;font-weight:500;z-index:5}
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">Sentinel</span>
+    <nav>
+      <a href="/scope" class="{% block nav_scope %}{% endblock %}">Scope</a>
+      <a href="/" class="{% block nav_home %}{% endblock %}">Remediate</a>
+      <a href="/triage" class="{% block nav_triage %}{% endblock %}">Triage</a>
+      <a href="/progress" class="{% block nav_progress %}{% endblock %}">Progress</a>
+      <a href="/escalated" class="{% block nav_escalated %}{% endblock %}">Escalated</a>
+      <a href="/learning" class="{% block nav_learning %}{% endblock %}">Learning</a>
+      <a href="/graph" class="{% block nav_graph %}{% endblock %}">Graph</a>
+    </nav>
+    <span class="run">{{ run_label }}</span>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

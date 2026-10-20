@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Remediate{% endblock %}
+{% block nav_home %}active{% endblock %}
+{% block content %}
+  <h1>Pre-remediation conversation</h1>
+  <p class="sub">
+    <strong>{{ approved_count }}</strong> approved finding group(s) are queued for remediation.
+    <a class="backlink" href="/brief.html">&larr; Back to triage brief</a>
+  </p>
+
+  <div class="card">
+    <h3>Recommendation</h3>
+    <div id="rec"><span class="spinner"></span> <span class="muted">Asking LLM for a recommendation…</span></div>
+  </div>
+
+  <div class="card">
+    <h3>Batch settings</h3>
+    <p>
+      <span class="iter">
+        <label>Iterations:</label>
+        <button type="button" class="ghost" onclick="stepIter(-1)">&minus;</button>
+        <input id="iterations" type="number" min="1" value="1">
+        <button type="button" class="ghost" onclick="stepIter(1)">+</button>
+      </span>
+    </p>
+    <p>
+      <label class="radio"><input type="radio" name="push" value="pr" checked> Open pull requests</label>
+      <label class="radio"><input type="radio" name="push" value="direct"> Push directly</label>
+    </p>
+    <button type="button" onclick="generateInstruction()">Generate instruction</button>
+  </div>
+
+  <div class="card" id="instrCard" hidden>
+    <h3>Copilot batch instruction</h3>
+    <button type="button" class="secondary" onclick="copyInstruction()">Copy</button>
+    <span id="copyMsg" class="muted"></span>
+    <pre id="instruction"></pre>
+  </div>
+
+  <script>
+    const APPROVED = {{ approved_count }};
+    function stepIter(d){
+      const el = document.getElementById('iterations');
+      el.value = Math.max(1, (parseInt(el.value,10)||1) + d);
+    }
+    async function loadRecommendation(){
+      try{
+        const r = await fetch('/api/recommend', {method:'POST'});
+        const data = await r.json();
+        document.getElementById('rec').textContent = data.recommendation || '(no recommendation)';
+        if(data.suggested_iterations){ document.getElementById('iterations').value = data.suggested_iterations; }
+      }catch(err){
+        document.getElementById('rec').textContent = 'Could not load recommendation: ' + err;
+      }
+    }
+    async function generateInstruction(){
+      const iterations = parseInt(document.getElementById('iterations').value,10) || 1;
+      const push_mode = document.querySelector('input[name="push"]:checked').value;
+      const r = await fetch('/api/instruction', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({iterations, push_mode})
+      });
+      const data = await r.json();
+      document.getElementById('instruction').textContent = data.instruction || '';
+      document.getElementById('instrCard').hidden = false;
+    }
+    function copyInstruction(){
+      const text = document.getElementById('instruction').textContent;
+      navigator.clipboard.writeText(text).then(function(){
+        document.getElementById('copyMsg').textContent = ' Copied.';
+      }, function(){
+        document.getElementById('copyMsg').textContent = ' Copy failed — select and copy manually.';
+      });
+    }
+    loadRecommendation();
+  </script>
+{% endblock %}

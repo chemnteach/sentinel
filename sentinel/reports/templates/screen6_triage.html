@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Triage{% endblock %}
+{% block nav_triage %}active{% endblock %}
+{% block content %}
+  <style>
+    .sev-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11.5px;font-weight:700}
+    .sev-Critical{background:#f8d7da;color:var(--red)}
+    .sev-P1{background:#fde2c8;color:#a15c00}
+    .sev-P2{background:#fff3cd;color:var(--amber)}
+    .sev-P3{background:#e2e8f0;color:#52606d}
+    .status-badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11.5px;font-weight:700;background:#e2e8f0;color:#52606d}
+    .status-badge.UNDECIDED{background:#e2e8f0;color:#52606d}
+    .status-badge.APPROVED{background:#dbeafe;color:var(--blue)}
+    .status-badge.IN_PROGRESS{background:#fff3cd;color:var(--amber)}
+    .status-badge.IN_REVIEW{background:#ede9fe;color:#6d28d9}
+    .status-badge.COMPLETE{background:#e6f4ea;color:var(--green)}
+    .status-badge.REVERTED{background:#f8d7da;color:var(--red)}
+    .bundle-card{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin:10px 0}
+    .bundle-card h3{margin:2px 0 4px;font-size:15px}
+    .rc-loc{font-size:12.5px;color:#52606d;font-family:ui-monospace,Menlo,Consolas,monospace}
+    .also{font-size:12.5px;color:#52606d;margin:4px 0}
+    .bundle-actions{margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    .cascade{margin-top:10px;border-top:1px solid var(--line);padding-top:8px}
+    .cascade .member{display:flex;gap:8px;align-items:center;padding:4px 0;font-size:13px}
+    .cascade .member.root{opacity:.55}
+    details.improvement > summary{cursor:pointer;font-weight:600;color:#52606d;padding:8px 0}
+  </style>
+
+  <h1>Bundle triage</h1>
+  <p class="sub" id="hdr">
+    {{ summary.total }} bundles · {{ summary.complete }} complete · {{ summary.undecided }} undecided
+  </p>
+  <p class="muted" id="resume">Resume: {{ decided }} of {{ summary.total }} decided</p>
+
+  {% macro bundle_card(b) %}
+    <div class="bundle-card" data-bundle-id="{{ b.bundle_id }}">
+      <div>
+        <span class="sev-badge sev-{{ b.root_severity }}">{{ b.root_severity }}</span>
+        <span class="status-badge {{ b.status }}" data-status>{{ b.status }}</span>
+      </div>
+      <h3>{{ b.root_title }}</h3>
+      <div class="rc-loc">{{ b.root_file }}{% if b.root_line %}:{{ b.root_line }}{% endif %}</div>
+      {% if b.also_resolves %}
+        <p class="also">Also resolves {{ b.also_resolves }} finding{{ 's' if b.also_resolves != 1 else '' }}</p>
+      {% endif %}
+      <div class="bundle-actions">
+        <button onclick="decide('{{ b.bundle_id }}','APPROVED')">APPROVE</button>
+        <button class="ghost" onclick="decide('{{ b.bundle_id }}','DEFERRED')">DEFER</button>
+        {% if b.cascade %}
+          <button class="ghost" onclick="toggleCascade(this)">&#9660; Show cascade</button>
+        {% endif %}
+      </div>
+      {% if b.cascade %}
+        <div class="cascade" hidden>
+          <div class="member root">
+            <span class="sev-badge sev-{{ b.root_severity }}">{{ b.root_severity }}</span>
+            <span>{{ b.root_title }}</span>
+            <span class="muted">(root cause)</span>
+          </div>
+          {% for m in b.cascade %}
+            <div class="member">
+              <span class="sev-badge sev-{{ m.severity if m.severity in ['Critical','P1','P2','P3'] else 'P3' }}">{{ m.severity }}</span>
+              <span>{{ m.title }}</span>
+              <button class="ghost"
+                onclick="exclude('{{ b.bundle_id }}','{{ m.finding_id }}')">EXCLUDE</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+  {% endmacro %}
+
+  {% if sections.Critical %}
+    <h2>Critical</h2>
+    {% for b in sections.Critical %}{{ bundle_card(b) }}{% endfor %}
+  {% endif %}
+
+  {% if sections.P1 %}
+    <h2>P1</h2>
+    {% for b in sections.P1 %}{{ bundle_card(b) }}{% endfor %}
+  {% endif %}
+
+  {% if sections.improvement %}
+    <details class="improvement">
+      <summary>Improvement opportunities ({{ sections.improvement|length }})</summary>
+      {% for b in sections.improvement %}{{ bundle_card(b) }}{% endfor %}
+    </details>
+  {% endif %}
+
+  <script>
+    function toggleCascade(btn){
+      const c = btn.closest('.bundle-card').querySelector('.cascade');
+      if(c){ c.hidden = !c.hidden; }
+    }
+    async function post(id, payload){
+      const r = await fetch('/api/bundles/'+encodeURIComponent(id)+'/decision', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      return r.ok ? r.json() : null;
+    }
+    async function decide(id, decision){
+      await post(id, {decision: decision});
+      await refresh();
+    }
+    async function exclude(id, findingId){
+      await post(id, {decision:'APPROVED', excluded_finding_ids:[findingId]});
+      await refresh();
+    }
+    async function refresh(){
+      try{
+        const r = await fetch('/api/bundles');
+        const data = await r.json();
+        const s = data.summary || {};
+        document.getElementById('hdr').textContent =
+          (s.total||0)+' bundles · '+(s.complete||0)+' complete · '+(s.undecided||0)+' undecided';
+        const decided = (s.total||0) - (s.undecided||0);
+        document.getElementById('resume').textContent =
+          'Resume: '+decided+' of '+(s.total||0)+' decided';
+        const byId = {};
+        (data.bundles||[]).forEach(function(b){ byId[b.bundle_id] = b; });
+        document.querySelectorAll('.bundle-card').forEach(function(card){
+          const b = byId[card.getAttribute('data-bundle-id')];
+          if(!b) return;
+          const st = (b.bundle_status || b.status || '').toUpperCase();
+          const badge = card.querySelector('[data-status]');
+          if(badge){ badge.textContent = st; badge.className = 'status-badge '+st; }
+        });
+      }catch(err){ /* keep last-known state on a transient error */ }
+    }
+    setInterval(refresh, 10000);
+  </script>
+{% endblock %}

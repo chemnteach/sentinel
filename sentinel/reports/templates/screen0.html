@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Scope{% endblock %}
+{% block nav_scope %}active{% endblock %}
+{% block content %}
+  <h1>Assessment scope — review before assessing</h1>
+  <p class="sub">Confirm which directories Sentinel will assess. Exclude generated, vendored, documentation, and diagnostic paths so the review focuses on shippable source.</p>
+
+  {% if existing %}
+    <div class="card" style="border-color:var(--green)">
+      <h3>Scope approved on {{ existing.approved_at }}</h3>
+      <p class="muted">Approved by {{ existing.approved_by }} for <code>{{ existing.repo_path }}</code>. Re-approve below to change it.</p>
+      {% if existing.excluded_paths %}
+        <p><strong>Approved exclusions:</strong></p>
+        <ul>
+          {% for p in existing.excluded_paths %}<li><code>{{ p }}</code></li>{% endfor %}
+        </ul>
+      {% else %}
+        <p class="muted">No exclusions were approved (whole repo in scope).</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="counts">
+    <div class="count-box"><div class="n">{{ rec.total_files }}</div><div class="l">Total files</div></div>
+    <div class="count-box"><div class="n">{{ rec.total_lines }}</div><div class="l">Total lines</div></div>
+    <div class="count-box"><div class="n">{{ rec.recommended_excludes|length }}</div><div class="l">Suggested excludes</div></div>
+  </div>
+  <p class="sub">Repository: <code>{{ rec.repo_path }}</code></p>
+
+  <div class="card">
+    <h3>Recommended exclusions</h3>
+    {% if not rec.recommended_excludes %}
+      <p class="muted">No exclusions recommended — the whole repository looks like source.</p>
+    {% else %}
+      <table>
+        <thead>
+          <tr><th>Exclude</th><th>Path</th><th>Category</th><th>Reason</th><th>Files</th><th>Confidence</th></tr>
+        </thead>
+        <tbody>
+          {% for e in rec.recommended_excludes %}
+            <tr>
+              <td><input type="checkbox" class="exclude-cb" value="{{ e.path }}" {% if e.confidence == "high" %}checked{% endif %}></td>
+              <td><code>{{ e.path }}</code></td>
+              <td>{{ e.category }}</td>
+              <td>{{ e.reason }}</td>
+              <td>{{ e.file_count }}</td>
+              <td>{{ e.confidence }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="muted" style="margin-top:10px">High-confidence exclusions are pre-checked. Medium/low confidence are left for you to decide.</p>
+    {% endif %}
+  </div>
+
+  {% if rec.recommended_includes %}
+    <div class="card">
+      <h3>In scope (top-level)</h3>
+      <p>{% for i in rec.recommended_includes %}<code>{{ i }}</code>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+    </div>
+  {% endif %}
+
+  <div class="card">
+    <h3>Save scope</h3>
+    <button type="button" id="save-scope">Save scope config</button>
+    <span id="save-status" class="muted" style="margin-left:12px"></span>
+  </div>
+
+  <div class="card">
+    <h3>Proceed to assess</h3>
+    <p class="muted">After saving, run the assessment with the approved exclusions:</p>
+    <pre id="assess-cmd"></pre>
+  </div>
+
+  <script>
+    const REPO_PATH = {{ rec.repo_path|tojson }};
+
+    function checkedPaths() {
+      return Array.from(document.querySelectorAll(".exclude-cb:checked")).map(cb => cb.value);
+    }
+
+    function renderCmd() {
+      const flags = checkedPaths().map(p => "--exclude " + p).join(" ");
+      const el = document.getElementById("assess-cmd");
+      el.textContent = "sentinel assess " + REPO_PATH + (flags ? " " + flags : "");
+    }
+
+    document.querySelectorAll(".exclude-cb").forEach(cb => cb.addEventListener("change", renderCmd));
+    renderCmd();
+
+    document.getElementById("save-scope").addEventListener("click", async () => {
+      const status = document.getElementById("save-status");
+      status.textContent = "Saving…";
+      try {
+        const resp = await fetch("/api/scope/approve", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({excludes: checkedPaths(), repo_path: REPO_PATH}),
+        });
+        const data = await resp.json();
+        status.textContent = data.status === "saved"
+          ? "Saved to " + data.path
+          : "Error saving scope";
+      } catch (err) {
+        status.textContent = "Error: " + err;
+      }
+    });
+  </script>
+{% endblock %}

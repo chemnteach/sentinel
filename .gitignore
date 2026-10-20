@@ -1,0 +1,51 @@
+# Virtual environments
+.venv/
+venv/
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Scratch exports
+sentinel_skills.zip
+
+# Assessment run logs (scratch; state dirs live outside the repo)
+run_*.log
+
+# sentinel scope generated output
+scope_config.yaml
+scope_config.yml
+
+# Environment
+.env
+.pip-cache/
+.model-cache/
+.pip-tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Contoso/project-only artifacts (keep local or in project repo, not source repo)
+state_*/
+sentinel/state/
+state_contoso*/
+Tool_Line_run3/
+.tmp_reviewed_diff.txt
+thoughts/no_key_compare_output*.json
+thoughts/run_no_key_compare*.py
+thoughts/handoffs/
+thoughts/ledgers/
+thoughts/handoffs/CONTROLLABLE_DEPENDENCY_SCOPE_*.md
+thoughts/handoffs/DEPENDENCIES_BY_PARENT_REPO_*.md
+thoughts/handoffs/EXEC_SUMMARY_*.md
+thoughts/handoffs/REMEDIATION_BY_SEVERITY_*.md
+
