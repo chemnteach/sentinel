@@ -75,6 +75,26 @@ class TestParseJsonResponse:
     def test_extracts_object_from_surrounding_prose(self) -> None:
         assert _parse_json_response('Here you go: {"a": 1} hope that helps') == {"a": 1}
 
+    @pytest.mark.parametrize(
+        ("truncated", "expected"),
+        [
+            ('{"items": [{"id": 1}, {"id": 2}', {"items": [{"id": 1}, {"id": 2}]}),
+            ('{"a": [1, 2', {"a": [1, 2]}),
+            ('{"a": {"b": 1}', {"a": {"b": 1}}),
+            ('{"a": 1, "b": "partial str', {"a": 1}),
+            ('{"a": 1, "b":', {"a": 1}),
+            ('{"a": {"b": 1, "c"', {"a": {"b": 1}}),
+            ('{"a": "x, y", "b": "trunc', {"a": "x, y"}),
+            ('{"a": "brace } in text", "b": [1', {"a": "brace } in text", "b": [1]}),
+        ],
+    )
+    def test_recovers_truncated_object(self, truncated: str, expected: dict) -> None:
+        assert _parse_json_response(truncated) == expected
+
+    def test_unrecoverable_truncation_raises(self) -> None:
+        with pytest.raises(ValueError):
+            _parse_json_response('{"a')
+
 
 class TestReasoningModelParameters:
     """OpenAI-compatible reasoning models (gpt-5*, o-series) reject a custom

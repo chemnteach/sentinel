@@ -1111,31 +1111,66 @@ def _parse_json_response(content: str) -> dict[str, Any]:
         except json.JSONDecodeError:
             pass
 
-    # Fallback 3: truncated response — try to close open braces/brackets
+    # Fallback 3: truncated response — close it at the last complete member
     if start != -1:
-        fragment = cleaned[start:]
-        open_braces = fragment.count("{") - fragment.count("}")
-        open_brackets = fragment.count("[") - fragment.count("]")
-        if open_braces > 0 or open_brackets > 0:
-            # Strip trailing partial string/value
-            repaired = re.sub(r',?\s*"[^"]*$', "", fragment)
-            repaired = re.sub(r",\s*$", "", repaired)
-            repaired += "]" * max(0, open_brackets) + "}" * max(0, open_braces)
-            try:
-                obj = json.loads(repaired)
-                if isinstance(obj, dict):
-                    log.warning(
-                        "Recovered truncated JSON response (%d chars, closed %d brace(s))",
-                        len(fragment),
-                        open_braces,
-                    )
-                    return obj
-            except json.JSONDecodeError:
-                pass
+        repaired = _repair_truncated_json(cleaned[start:])
+        if repaired is not None:
+            log.warning("Recovered truncated JSON response (%d chars)", len(cleaned) - start)
+            return repaired
 
     raise ValueError(
         f"Model response is not valid JSON:\nContent: {content[:600]}"
     )
+
+
+_MAX_TRUNCATION_CUTS = 50
+
+
+def _repair_truncated_json(fragment: str) -> dict[str, Any] | None:
+    """Parse a JSON object that was cut off mid-stream.
+
+    Tries closing the open containers as-is, then cutting back to each earlier
+    member-separating comma (dropping the incomplete trailing member). Returns
+    None when no candidate parses to a dict.
+    """
+    closers: list[str] = []
+    in_string = escaped = False
+    cuts: list[tuple[int, str]] = []
+    for index, char in enumerate(fragment):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+        elif char == '"':
+            in_string = True
+        elif char in "{[":
+            closers.append("}" if char == "{" else "]")
+        elif char in "}]":
+            if not closers:
+                return None
+            closers.pop()
+            if not closers:
+                return None  # the object closed, so this is not a truncation
+        elif char == ",":
+            cuts.append((index, "".join(reversed(closers))))
+
+    candidates: list[str] = []
+    if closers and not in_string:
+        candidates.append(fragment.rstrip() + "".join(reversed(closers)))
+    candidates.extend(
+        fragment[:index] + suffix for index, suffix in reversed(cuts[-_MAX_TRUNCATION_CUTS:])
+    )
+    for candidate in candidates:
+        try:
+            obj = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict):
+            return obj
+    return None
 
 
 def _estimate_token_count(text: str) -> int:
